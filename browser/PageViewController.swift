@@ -8,10 +8,11 @@
 import UIKit
 import WebKit
 
-class ViewController: UIViewController, WKNavigationDelegate {
+class PageViewController: UIViewController, WKNavigationDelegate {
     var webView: WKWebView!
     var progressView: UIProgressView!
-    let websites = ["apple.com", "hackingwithswift.com"]
+    var selectedWebsite: String?
+    var websites: [String]?
     
     override func loadView() {
         // Create the Web View instance and set
@@ -24,8 +25,12 @@ class ViewController: UIViewController, WKNavigationDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // Create a Bar Button with custom title
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Open", style: .plain, target: self, action: #selector(openTapped))
+        
+        // Hides the back button in navigation bar, this is
+        // set because the interface has an open button with
+        // the websites option
+        navigationItem.setHidesBackButton(true, animated: true)
         
         // Create a Progress View and attach it to a Bar Button,
         // the sizeToFit is used to make the Progress View grow up
@@ -51,6 +56,8 @@ class ViewController: UIViewController, WKNavigationDelegate {
         // why is necessary to change this property
         navigationController?.isToolbarHidden = false
         
+        navigationItem.largeTitleDisplayMode = .never
+        
         // Adds an Observer to look at the property estimatedProgress
         // and send updates when its receives new values. The #keyPath
         // is used to point the property in class constructor that will
@@ -60,9 +67,11 @@ class ViewController: UIViewController, WKNavigationDelegate {
         // Create an URL and passs to the Web View loads it
         // It's necessary to envolve the URL in URLRequest
         // since we want to navigate to a web page
-        let url = URL(string: "https://" + websites[0])!
-        webView.load(URLRequest(url: url))
-        webView.allowsBackForwardNavigationGestures = true
+        if let selectedWebsite = selectedWebsite {
+            let url = URL(string: "https://" + selectedWebsite)!
+            webView.load(URLRequest(url: url))
+            webView.allowsBackForwardNavigationGestures = true
+        }
     }
     
     @objc func openTapped() {
@@ -70,17 +79,20 @@ class ViewController: UIViewController, WKNavigationDelegate {
         // the cancel one doesn't need a handler. The handler passed
         // here has access to UIAlertAction properties
         let ac = UIAlertController(title: "Open page...", message: nil, preferredStyle: .actionSheet)
-        
-        for website in websites {
-            ac.addAction(UIAlertAction(title: website, style: .default, handler: openPage))
+
+        if let websites = websites {
+            for website in websites {
+                ac.addAction(UIAlertAction(title: website, style: .default, handler: openPage))
+            }
         }
-        
+
         ac.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        
+
         ac.popoverPresentationController?.barButtonItem = navigationItem.rightBarButtonItem
         present(ac, animated: true)
-        
+
     }
+
     
     // Handler that opens the page selected by user
     func openPage(action: UIAlertAction) {
@@ -90,9 +102,14 @@ class ViewController: UIViewController, WKNavigationDelegate {
         webView.load(URLRequest(url: url))
     }
     
+    // If the user tries to access a website that aren't
+    // in the list, this function is responsible to sent
+    // him back to Home View Controller to chose an allowed
+    // website
     func loadHomePage(action: UIAlertAction) {
-        let url = URL(string: "https://" + websites[0])!
-        webView.load(URLRequest(url: url))
+        if let vc = storyboard?.instantiateViewController(withIdentifier: "Home") as? HomeTableViewController {
+            navigationController?.pushViewController(vc, animated: true)
+        }
     }
     
     // Create a back or forward button to insert in a
@@ -138,7 +155,7 @@ class ViewController: UIViewController, WKNavigationDelegate {
         
         // It's possible that an URL doesn't have
         // a host property
-        if let host = url?.host {
+        if let host = url?.host, let websites = websites {
             for website in websites {
                 if host.contains(website) {
                     decisionHandler(.allow)
@@ -146,6 +163,8 @@ class ViewController: UIViewController, WKNavigationDelegate {
                 }
             }
             
+            // Show an alert informing the user that the site
+            // isn't allowed to access
             let ac = UIAlertController(title: "Not allowed", message: "The access to this page is blocked.", preferredStyle: .alert)
             ac.addAction(UIAlertAction(title: "Go home", style: .default, handler: loadHomePage))
             present(ac, animated: true)
